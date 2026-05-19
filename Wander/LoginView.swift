@@ -12,6 +12,12 @@ enum AuthMode: String, CaseIterable {
     case register = "Register"
 }
 
+// MARK: - Focus Field
+
+private enum Field: Hashable {
+    case email, password, confirmPassword
+}
+
 // MARK: - Login View
 
 struct LoginView: View {
@@ -23,28 +29,33 @@ struct LoginView: View {
     @State private var password:        String   = ""
     @State private var confirmPassword: String   = ""
 
+    @FocusState private var focusedField: Field?
+
     // MARK: Body
 
     var body: some View {
-        ZStack {
-            Color(UIColor.systemGroupedBackground)
-                .ignoresSafeArea()
+        List {
+            headerSection
+            pickerSection
+            fieldsSection
+            actionSection
 
-            List {
-                headerSection
-                pickerSection
-                fieldsSection
-                actionSection
-
-                if authMode == .login {
-                    forgotSection
-                }
+            if authMode == .login {
+                forgotSection
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
         }
-        .colorScheme(.light)
-        .ignoresSafeArea(.keyboard)
+        .listStyle(.insetGrouped)
+        // Keyboard interaction
+        .scrollDismissesKeyboard(.interactively)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // Done button above keyboard
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedField = nil }
+                    .fontWeight(.semibold)
+            }
+        }
         .animation(.spring(duration: 0.3), value: authMode)
     }
 
@@ -53,10 +64,10 @@ struct LoginView: View {
     private var headerSection: some View {
         Section {
             VStack(spacing: 10) {
-                // App icon — rounded square, exactly like an iOS home screen icon
+                // Rounded-square icon — like an iOS home screen app icon
                 ZStack {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.blue.opacity(0.10))
+                        .fill(.blue.opacity(0.12))
                         .frame(width: 76, height: 76)
 
                     Image(systemName: "globe")
@@ -75,8 +86,8 @@ struct LoginView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 20)
-            .listRowBackground(Color(UIColor.systemGroupedBackground))
         }
+        .listRowBackground(Color(.systemGroupedBackground))
         .listRowSeparator(.hidden)
     }
 
@@ -90,8 +101,8 @@ struct LoginView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .listRowBackground(Color(UIColor.systemGroupedBackground))
         }
+        .listRowBackground(Color(.systemGroupedBackground))
         .listRowSeparator(.hidden)
     }
 
@@ -104,13 +115,25 @@ struct LoginView: View {
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($focusedField, equals: .email)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .password }
 
             SecureField("Password", text: $password)
                 .textContentType(authMode == .login ? .password : .newPassword)
+                .focused($focusedField, equals: .password)
+                .submitLabel(authMode == .login ? .done : .next)
+                .onSubmit {
+                    if authMode == .login { focusedField = nil }
+                    else { focusedField = .confirmPassword }
+                }
 
             if authMode == .register {
                 SecureField("Confirm Password", text: $confirmPassword)
                     .textContentType(.newPassword)
+                    .focused($focusedField, equals: .confirmPassword)
+                    .submitLabel(.done)
+                    .onSubmit { focusedField = nil }
                     .transition(
                         .asymmetric(
                             insertion: .push(from: .top).combined(with: .opacity),
@@ -131,8 +154,8 @@ struct LoginView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .listRowBackground(Color.clear)
         }
+        .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
     }
 
@@ -147,14 +170,16 @@ struct LoginView: View {
             .foregroundStyle(.secondary)
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
-            .listRowBackground(Color.clear)
         }
+        .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
     }
 
     // MARK: - Auth Handler
 
     private func handleAuth() {
+        focusedField = nil
+
         switch authMode {
         case .login:
             // TODO: connect to Firebase
