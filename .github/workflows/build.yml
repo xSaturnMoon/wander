@@ -1,0 +1,64 @@
+name: Build Wander IPA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          # Use the newest available Xcode (16+)
+          XCODE=$(ls /Applications | grep "Xcode" | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "/Applications/$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build app (unsigned, iphoneos SDK)
+        run: |
+          xcodebuild \
+            -project Wander.xcodeproj \
+            -scheme Wander \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
+
+      - name: Package .ipa
+        run: |
+          APP_PATH=$(find "$RUNNER_TEMP/DerivedData" \
+            -name "*.app" \
+            -not -path "*/simulator/*" \
+            | head -1)
+
+          echo "Found app at: $APP_PATH"
+
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/Wander.app
+
+          zip -r Wander.ipa Payload
+          rm -rf Payload
+
+          echo "IPA size: $(du -sh Wander.ipa | cut -f1)"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wander-IPA
+          path: Wander.ipa
+          retention-days: 30
+          if-no-files-found: error
