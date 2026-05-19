@@ -100,15 +100,32 @@ struct LoginView: View {
 
     // MARK: - Credentials Section
     //
-    // Each row gets its own .id() so ScrollViewReader can scroll
+    // AutoFill contract:
+    //  • .username     — tells iOS this is the account identifier; Keychain pairs it
+    //                    with the adjacent password field so FaceID/TouchID autofill works.
+    //  • .password     — (Login) triggers QuickType bar with saved credentials.
+    //  • .newPassword  — (Register) triggers iOS strong-password generator and
+    //                    offers to save to iCloud Keychain after successful sign-up.
+    //
+    // Each row also gets its own .id() so ScrollViewReader can scroll
     // precisely to whichever field is focused.
+
+    /// Strong-password rules surfaced to iOS AutoFill.
+    /// iOS will offer to generate a password matching these rules
+    /// when textContentType is .newPassword.
+    private let strongPasswordRules = UITextInputPasswordRules(
+        descriptor: "required: upper; required: lower; required: digit; minlength: 12;"
+    )
 
     private var credentialsSection: some View {
         VStack(spacing: 0) {
 
             // Email row
+            // .username (not .emailAddress) is the correct type here:
+            // iOS needs .username to link email+password as a Keychain credential pair.
+            // .keyboardType(.emailAddress) still shows the email keyboard.
             TextField("Email", text: $email)
-                .textContentType(.emailAddress)
+                .textContentType(.username)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -122,8 +139,11 @@ struct LoginView: View {
             Divider().padding(.leading, 16)
 
             // Password row
+            // Login  → .password  : QuickType bar shows saved logins + FaceID unlock
+            // Register → .newPassword : iOS offers to generate + save a strong password
             SecureField("Password", text: $password)
                 .textContentType(authMode == .login ? .password : .newPassword)
+                .passwordRules(authMode == .register ? strongPasswordRules : nil)
                 .focused($focusedField, equals: .password)
                 .submitLabel(authMode == .login ? .done : .next)
                 .onSubmit {
@@ -135,11 +155,14 @@ struct LoginView: View {
                 .id(Field.password)
 
             // Confirm password row — Register only
+            // Also .newPassword so iOS knows both fields belong to the same
+            // new-account flow and won't try to autofill from Keychain here.
             if authMode == .register {
                 Divider().padding(.leading, 16)
 
                 SecureField("Confirm Password", text: $confirmPassword)
                     .textContentType(.newPassword)
+                    .passwordRules(strongPasswordRules)
                     .focused($focusedField, equals: .confirmPassword)
                     .submitLabel(.done)
                     .onSubmit { focusedField = nil }
