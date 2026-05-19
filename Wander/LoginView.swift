@@ -112,12 +112,6 @@ struct LoginView: View {
     // Each row also gets its own .id() so ScrollViewReader can scroll
     // precisely to whichever field is focused.
 
-    /// Strong-password rules surfaced to iOS AutoFill.
-    /// iOS will offer to generate a password matching these rules
-    /// when textContentType is .newPassword.
-    private let strongPasswordRules = UITextInputPasswordRules(
-        descriptor: "required: upper; required: lower; required: digit; minlength: 12;"
-    )
 
     private var credentialsSection: some View {
         VStack(spacing: 0) {
@@ -141,11 +135,12 @@ struct LoginView: View {
             Divider().padding(.leading, 16)
 
             // Password row
-            // Login  → .password  : QuickType bar shows saved logins + FaceID unlock
+            // Login  → .password    : QuickType bar shows saved credentials + FaceID unlock
             // Register → .newPassword : iOS offers to generate + save a strong password
+            //            textContentType(.newPassword) alone triggers the strong-password
+            //            generator — no extra passwordRules API needed in SwiftUI.
             SecureField("Password", text: $password)
                 .textContentType(authMode == .login ? .password : .newPassword)
-                .passwordRules(authMode == .register ? strongPasswordRules : nil)
                 .focused($focusedField, equals: .password)
                 .submitLabel(authMode == .login ? .done : .next)
                 .onSubmit {
@@ -164,7 +159,6 @@ struct LoginView: View {
 
                 SecureField("Confirm Password", text: $confirmPassword)
                     .textContentType(.newPassword)
-                    .passwordRules(strongPasswordRules)
                     .focused($focusedField, equals: .confirmPassword)
                     .submitLabel(.done)
                     .onSubmit { focusedField = nil }
