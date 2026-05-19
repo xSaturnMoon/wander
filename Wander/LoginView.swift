@@ -24,6 +24,8 @@ struct LoginView: View {
 
     @Binding var isAuthenticated: Bool
 
+    @AppStorage("userEmail") private var userEmail: String = ""
+
     @State private var authMode:        AuthMode = .login
     @State private var email:           String   = ""
     @State private var password:        String   = ""
@@ -213,13 +215,19 @@ struct LoginView: View {
         switch authMode {
         case .login:
             // TODO: connect to Firebase
-            // Auth.auth().signIn(withEmail: email, password: password) { result, error in … }
+            // Auth.auth().signIn(withEmail: email, password: password) { result, error in
+            //     if error == nil { userEmail = email; isAuthenticated = true }
+            // }
+            userEmail = email
             isAuthenticated = true
 
         case .register:
             // TODO: connect to Firebase
-            // Auth.auth().createUser(withEmail: email, password: password) { result, error in … }
+            // Auth.auth().createUser(withEmail: email, password: password) { result, error in
+            //     if error == nil { userEmail = email; isAuthenticated = true }
+            // }
             guard password == confirmPassword else { return }
+            userEmail = email
             isAuthenticated = true
         }
     }
