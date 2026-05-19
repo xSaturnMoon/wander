@@ -13,6 +13,7 @@
 		AABBCCDD00000000000000F4 /* MapTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD00000000000000B4 /* MapTab.swift */; };
 		AABBCCDD00000000000000F5 /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD00000000000000B5 /* SettingsTab.swift */; };
 		AABBCCDD00000000000000F6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AABBCCDD00000000000000B7 /* Assets.xcassets */; };
+		AABBCCDD00000000000000F7 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD00000000000000B8 /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		AABBCCDD00000000000000B5 /* SettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTab.swift; sourceTree = "<group>"; };
 		AABBCCDD00000000000000B6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AABBCCDD00000000000000B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AABBCCDD00000000000000B8 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		AABBCCDD00000000000000C1 /* Wander.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wander.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -53,6 +55,7 @@
 				AABBCCDD00000000000000B3 /* GlobeTab.swift */,
 				AABBCCDD00000000000000B4 /* MapTab.swift */,
 				AABBCCDD00000000000000B5 /* SettingsTab.swift */,
+				AABBCCDD00000000000000B8 /* LoginView.swift */,
 				AABBCCDD00000000000000B6 /* Info.plist */,
 				AABBCCDD00000000000000B7 /* Assets.xcassets */,
 			);
@@ -141,6 +144,7 @@
 				AABBCCDD00000000000000F3 /* GlobeTab.swift in Sources */,
 				AABBCCDD00000000000000F4 /* MapTab.swift in Sources */,
 				AABBCCDD00000000000000F5 /* SettingsTab.swift in Sources */,
+				AABBCCDD00000000000000F7 /* LoginView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
