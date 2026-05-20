@@ -37,18 +37,20 @@ struct GlobeTab: View {
     }
     
     var body: some View {
-        ZStack {
-            // Dark background for the globe
-            Color(UIColor.systemBackground)
-                .ignoresSafeArea()
-            
-            // Full screen 3D Globe
-            GlobeSceneView(visitedCountries: Binding(
-                get: { self.visitedCountries },
-                set: { self.visitedCountries = $0 }
-            ))
-            .ignoresSafeArea()
+        ScrollView {
+            VStack {
+                GlobeSceneView(visitedCountries: Binding(
+                    get: { self.visitedCountries },
+                    set: { self.visitedCountries = $0 }
+                ))
+                .frame(height: UIScreen.main.bounds.height * 0.4)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+                .padding(.horizontal)
+                
+                Spacer()
+            }
         }
+        .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
     }
 }
 
@@ -74,10 +76,16 @@ struct GlobeSceneView: UIViewRepresentable {
         // Default base color if texture is missing
         globeMaterial.diffuse.contents = UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0)
         
-        // Load textures from Assets
-        // Note: You must add "world_visual" and "world_hitmap" to your Assets.xcassets
-        if let visualImage = UIImage(named: "world_visual") {
-            globeMaterial.diffuse.contents = visualImage
+        // Fetch missing texture from the provided URL at runtime
+        if let url = URL(string: "https://raw.githubusercontent.com/simonepri/geo-maps/master/previews/earth-coastlines.png") {
+            let task = URLSession.shared.dataTask(with: url) { data, response, error in
+                if let data = data, let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        globeMaterial.diffuse.contents = image
+                    }
+                }
+            }
+            task.resume()
         }
         
         globeGeometry.materials = [globeMaterial]
