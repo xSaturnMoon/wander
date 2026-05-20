@@ -11,8 +11,11 @@ struct SettingsTab: View {
 
     @AppStorage("isAuthenticated") private var isAuthenticated = false
     @AppStorage("userEmail")       private var userEmail: String = ""
+    @AppStorage("userFirstName")   private var userFirstName: String = ""
+    @AppStorage("userLastName")    private var userLastName: String = ""
     @AppStorage("theme")           private var theme: String = "System"
 
+    @State private var showChangeUserInfo = false
     @State private var showChangePassword = false
     @State private var showLogoutAlert    = false
 
@@ -28,6 +31,9 @@ struct SettingsTab: View {
             .formStyle(.grouped)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .sheet(isPresented: $showChangeUserInfo) {
+            ChangeUserInfoSheet()
         }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
@@ -49,29 +55,41 @@ struct SettingsTab: View {
     // blends into the grouped background — mirrors the Apple ID header
     // at the top of iOS Settings.
 
+    private var initials: String {
+        let first = userFirstName.prefix(1).uppercased()
+        let last = userLastName.prefix(1).uppercased()
+        return first + last
+    }
+
     private var profileSection: some View {
         Section {
-            VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                // Avatar circle with initials
                 ZStack {
                     Circle()
                         .fill(Color(.systemGray3))
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Circle()
-                                .stroke(Color(.systemGray5), lineWidth: 1)
-                        )
-
-                    Text(userEmail.prefix(1).uppercased())
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .frame(width: 64, height: 64)
+                        .overlay(Circle().stroke(Color(.systemGray5), lineWidth: 1))
+                    
+                    Text(initials)
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
                 }
 
-                Text(userEmail.isEmpty ? "—" : userEmail)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // Name + email
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(userFirstName) \(userLastName)")
+                        .font(.system(.title3, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(userEmail.isEmpty ? "—" : userEmail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
         }
         .listRowBackground(Color(.systemGroupedBackground))
         .listRowSeparator(.hidden)
@@ -81,6 +99,21 @@ struct SettingsTab: View {
 
     private var accountSection: some View {
         Section("Account") {
+
+            // Change User Info
+            Button {
+                showChangeUserInfo = true
+            } label: {
+                HStack {
+                    Text("Change User Info")
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
 
             // Change Password — sheet-based navigation, chevron added manually
             // (only NavigationLink renders chevrons automatically)
@@ -139,6 +172,67 @@ struct SettingsTab: View {
             }
             .allowsHitTesting(false)
         }
+    }
+}
+
+// MARK: - Change User Info Sheet
+
+private struct ChangeUserInfoSheet: View {
+
+    @Environment(\.dismiss) private var dismiss
+
+    @AppStorage("userFirstName") private var userFirstName: String = ""
+    @AppStorage("userLastName")  private var userLastName: String = ""
+
+    @State private var firstName: String = ""
+    @State private var lastName:  String = ""
+
+    @FocusState private var focusedField: Bool
+
+    private var canSave: Bool {
+        !firstName.isEmpty && !lastName.isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("First Name", text: $firstName)
+                        .textContentType(.givenName)
+                        .focused($focusedField)
+                        .submitLabel(.next)
+
+                    TextField("Last Name", text: $lastName)
+                        .textContentType(.familyName)
+                        .submitLabel(.done)
+                        .onSubmit { if canSave { saveInfo() } }
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Change User Info")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                firstName = userFirstName
+                lastName = userLastName
+                focusedField = true
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: saveInfo)
+                        .disabled(!canSave)
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func saveInfo() {
+        userFirstName = firstName
+        userLastName = lastName
+        dismiss()
     }
 }
 

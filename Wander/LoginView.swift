@@ -15,7 +15,7 @@ enum AuthMode: String, CaseIterable {
 // MARK: - Focus Field
 
 private enum Field: Hashable {
-    case email, password, confirmPassword
+    case firstName, lastName, email, password, confirmPassword
 }
 
 // MARK: - Login View
@@ -24,9 +24,13 @@ struct LoginView: View {
 
     @Binding var isAuthenticated: Bool
 
-    @AppStorage("userEmail") private var userEmail: String = ""
+    @AppStorage("userEmail")     private var userEmail: String = ""
+    @AppStorage("userFirstName") private var userFirstName: String = ""
+    @AppStorage("userLastName")  private var userLastName: String = ""
 
     @State private var authMode:        AuthMode = .login
+    @State private var firstName:       String   = ""
+    @State private var lastName:        String   = ""
     @State private var email:           String   = ""
     @State private var password:        String   = ""
     @State private var confirmPassword: String   = ""
@@ -115,6 +119,43 @@ struct LoginView: View {
 
     private var credentialsSection: some View {
         VStack(spacing: 0) {
+
+            // First Name & Last Name — Register only
+            if authMode == .register {
+                TextField("First Name", text: $firstName)
+                    .textContentType(.givenName)
+                    .focused($focusedField, equals: .firstName)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .lastName }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+                    .id(Field.firstName)
+                    .transition(
+                        .asymmetric(
+                            insertion: .push(from: .top).combined(with: .opacity),
+                            removal:   .push(from: .bottom).combined(with: .opacity)
+                        )
+                    )
+
+                Divider().padding(.leading, 16)
+
+                TextField("Last Name", text: $lastName)
+                    .textContentType(.familyName)
+                    .focused($focusedField, equals: .lastName)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .email }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+                    .id(Field.lastName)
+                    .transition(
+                        .asymmetric(
+                            insertion: .push(from: .top).combined(with: .opacity),
+                            removal:   .push(from: .bottom).combined(with: .opacity)
+                        )
+                    )
+
+                Divider().padding(.leading, 16)
+            }
 
             // Email row
             // .username (not .emailAddress) is the correct type here:
@@ -222,6 +263,8 @@ struct LoginView: View {
             // }
             guard password == confirmPassword else { return }
             userEmail = email
+            userFirstName = firstName
+            userLastName = lastName
             isAuthenticated = true
         }
     }
