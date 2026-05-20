@@ -45,7 +45,7 @@ struct WanderApp: App {
             .preferredColorScheme(preferredColorScheme)
             .animation(.easeInOut(duration: 0.25), value: isAuthenticated)
             .animation(.easeInOut(duration: 0.25), value: locationManager.authorizationStatus)
-            .onChange(of: scenePhase) { oldPhase, newPhase in
+            .onChange(of: scenePhase) { newPhase in
                 if newPhase == .active {
                     locationManager.startUpdating()
                 } else if newPhase == .background {
@@ -53,5 +53,121 @@ struct WanderApp: App {
                 }
             }
         }
+    }
+}
+
+// MARK: - Location Manager
+import CoreLocation
+
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    static let shared = LocationManager()
+    
+    private let manager = CLLocationManager()
+    
+    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var userLocation: CLLocationCoordinate2D? = nil
+    
+    override private init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        self.authorizationStatus = manager.authorizationStatus
+    }
+    
+    func requestPermission() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse:
+            manager.requestAlwaysAuthorization()
+        case .denied, .restricted:
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        default:
+            break
+        }
+    }
+    
+    func startUpdating() {
+        if authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse {
+            manager.startUpdatingLocation()
+        }
+    }
+    
+    func stopUpdating() {
+        manager.stopUpdatingLocation()
+    }
+    
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        DispatchQueue.main.async {
+            self.authorizationStatus = manager.authorizationStatus
+            if self.authorizationStatus == .authorizedWhenInUse {
+                manager.requestAlwaysAuthorization()
+            }
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        DispatchQueue.main.async {
+            self.userLocation = location.coordinate
+        }
+    }
+}
+
+// MARK: - Location Blocker View
+
+struct LocationBlockerView: View {
+    @ObservedObject var locationManager = LocationManager.shared
+    @State private var showInfoAlert = false
+    
+    var body: some View {
+        VStack(spacing: 32) {
+            Image(systemName: "location.slash.circle.fill")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .foregroundColor(.red)
+            
+            Text("Accesso negato")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Text("Consenti l'utilizzo continuo della posizione per continuare a usare Wander.")
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 40)
+            
+            VStack(spacing: 16) {
+                Button(action: { showInfoAlert = true }) {
+                    Text("Info")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(12)
+                }
+                .alert("Informazioni", isPresented: $showInfoAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: { Text("") }
+                
+                Button(action: { locationManager.requestPermission() }) {
+                    Text("Consenti sempre")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(UIColor.systemBackground).ignoresSafeArea())
     }
 }

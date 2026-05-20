@@ -6,6 +6,7 @@
 import SwiftUI
 import SceneKit
 import CoreGraphics
+import CoreLocation
 
 // MARK: - AppStorage Helper for Array
 
