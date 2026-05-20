@@ -72,7 +72,7 @@ struct GlobeSceneView: UIViewRepresentable {
 
         // 2. Download GeoJSON from Natural Earth (confirmed working URL)
         let geoURL = URL(string:
-            "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_coastline.geojson")!
+            "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson")!
 
         URLSession.shared.dataTask(with: geoURL) { data, _, _ in
             guard
@@ -81,15 +81,18 @@ struct GlobeSceneView: UIViewRepresentable {
                 let features = root["features"] as? [[String: Any]]
             else { return }
 
-            // 3. Collect every LineString / MultiLineString into one flat array of polylines
+            // 3. Collect every Polygon / MultiPolygon border into one flat array of polylines
             var polylines: [[[Double]]] = []
             for feature in features {
                 guard let geom = feature["geometry"] as? [String: Any],
                       let type = geom["type"] as? String else { continue }
-                if type == "LineString", let coords = geom["coordinates"] as? [[Double]] {
-                    polylines.append(coords)
-                } else if type == "MultiLineString", let lines = geom["coordinates"] as? [[[Double]]] {
-                    polylines.append(contentsOf: lines)
+                
+                if type == "Polygon", let rings = geom["coordinates"] as? [[[Double]]] {
+                    polylines.append(contentsOf: rings)
+                } else if type == "MultiPolygon", let polygons = geom["coordinates"] as? [[[[Double]]]] {
+                    for rings in polygons {
+                        polylines.append(contentsOf: rings)
+                    }
                 }
             }
 
@@ -193,6 +196,10 @@ struct GlobeSceneView: UIViewRepresentable {
         private var displayLink: CADisplayLink?
         private var velocity: CGPoint = .zero
         
+        // Track absolute angles to avoid gimbal lock
+        private var angleX: Float = 0 // Rotation around Y axis (longitude)
+        private var angleY: Float = 0 // Rotation around X axis (latitude)
+        
         // Texture caching
         private var cachedHitMap: UIImage?
         private var cachedVisualMap: UIImage?
@@ -233,14 +240,14 @@ struct GlobeSceneView: UIViewRepresentable {
             guard let node = globeNode else { return }
             let rotationScale: Float = 0.005
             
-            // Rotate around global Y axis (left/right drag)
-            let rotY = SCNMatrix4MakeRotation(Float(dx) * rotationScale, 0, 1, 0)
+            angleX += Float(dx) * rotationScale
+            angleY += Float(dy) * rotationScale
             
-            // Rotate around global X axis (up/down drag)
-            let rotX = SCNMatrix4MakeRotation(Float(dy) * rotationScale, 1, 0, 0)
+            // Clamp latitude to prevent flipping upside down
+            angleY = max(-.pi/2, min(.pi/2, angleY))
             
-            // Combine with current transform
-            node.transform = SCNMatrix4Mult(SCNMatrix4Mult(rotX, rotY), node.transform)
+            // Apply Euler angles (X first, then Y)
+            node.eulerAngles = SCNVector3(angleY, angleX, 0)
         }
         
         private func startInertia() {
