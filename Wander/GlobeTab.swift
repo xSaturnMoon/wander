@@ -116,6 +116,7 @@ struct GlobeSceneView: UIViewRepresentable {
     
     // MARK: - Coordinator
     
+    @MainActor
     class Coordinator: NSObject {
         @Binding var visitedCountries: Set<String>
         
