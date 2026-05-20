@@ -27,7 +27,7 @@ struct SettingsTab: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
@@ -54,8 +54,12 @@ struct SettingsTab: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(Color(.systemGray4))
+                        .fill(Color(.systemGray3))
                         .frame(width: 80, height: 80)
+                        .overlay(
+                            Circle()
+                                .stroke(Color(.systemGray5), lineWidth: 1)
+                        )
 
                     Text(userEmail.prefix(1).uppercased())
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
