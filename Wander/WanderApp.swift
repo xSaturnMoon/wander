@@ -101,18 +101,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            self.authorizationStatus = manager.authorizationStatus
-            if self.authorizationStatus == .authorizedWhenInUse {
-                manager.requestAlwaysAuthorization()
+            self.authorizationStatus = status
+            if status == .authorizedWhenInUse {
+                self.manager.requestAlwaysAuthorization()
             }
         }
     }
     
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        let lat = location.coordinate.latitude
+        let lon = location.coordinate.longitude
         Task { @MainActor in
-            self.userLocation = location.coordinate
+            self.userLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
     }
 }
