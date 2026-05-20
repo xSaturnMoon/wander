@@ -79,9 +79,25 @@ struct GlobeSceneView: UIViewRepresentable {
         // Fetch missing texture from the provided URL at runtime
         if let url = URL(string: "https://raw.githubusercontent.com/simonepri/geo-maps/master/previews/earth-coastlines.png") {
             let task = URLSession.shared.dataTask(with: url) { data, response, error in
-                if let data = data, let image = UIImage(data: data) {
+                if let data = data, let originalImage = UIImage(data: data) {
+                    
+                    // Pre-composite the background color and the coastlines into a single texture
+                    let size = originalImage.size
+                    let renderer = UIGraphicsImageRenderer(size: size)
+                    let compositedImage = renderer.image { context in
+                        // 1. Fill dark gray background (#2C2C2E)
+                        UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0).setFill()
+                        context.fill(CGRect(origin: .zero, size: size))
+                        
+                        // 2. Tint coastlines light gray (#8E8E93) and draw them
+                        let lightGray = UIColor(red: 142/255, green: 142/255, blue: 147/255, alpha: 1.0)
+                        let tintedImage = originalImage.withTintColor(lightGray, renderingMode: .alwaysTemplate)
+                        lightGray.set()
+                        tintedImage.draw(in: CGRect(origin: .zero, size: size))
+                    }
+                    
                     DispatchQueue.main.async {
-                        globeMaterial.diffuse.contents = image
+                        globeMaterial.diffuse.contents = compositedImage
                     }
                 }
             }
