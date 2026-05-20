@@ -8,6 +8,9 @@ import SwiftUI
 @main
 struct WanderApp: App {
 
+    @StateObject private var locationManager = LocationManager.shared
+    @Environment(\.scenePhase) private var scenePhase
+
     /// Persisted across launches — LoginView sets this true, SettingsTab sets it false.
     /// TODO: replace with a Firebase Auth state listener:
     /// Auth.auth().addStateDidChangeListener { _, user in isAuthenticated = user != nil }
@@ -28,15 +31,27 @@ struct WanderApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if isAuthenticated {
-                    ContentView()
+                if locationManager.authorizationStatus == .authorizedAlways {
+                    if isAuthenticated {
+                        ContentView()
+                    } else {
+                        LoginView(isAuthenticated: $isAuthenticated)
+                    }
                 } else {
-                    LoginView(isAuthenticated: $isAuthenticated)
+                    LocationBlockerView()
                 }
             }
             // Apply theme globally so it covers TabView, sheets, and NavigationStacks.
             .preferredColorScheme(preferredColorScheme)
             .animation(.easeInOut(duration: 0.25), value: isAuthenticated)
+            .animation(.easeInOut(duration: 0.25), value: locationManager.authorizationStatus)
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                if newPhase == .active {
+                    locationManager.startUpdating()
+                } else if newPhase == .background {
+                    locationManager.stopUpdating()
+                }
+            }
         }
     }
 }

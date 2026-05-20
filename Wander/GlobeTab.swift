@@ -27,6 +27,8 @@ extension Array: @retroactive RawRepresentable where Element: Codable {
 // MARK: - Globe Tab
 
 struct GlobeTab: View {
+    @StateObject private var locationManager = LocationManager.shared
+    
     // Persist as a JSON array of strings
     @AppStorage("visitedCountries") private var visitedCountriesArray: [String] = []
     
@@ -38,17 +40,19 @@ struct GlobeTab: View {
     
     var body: some View {
         ScrollView {
-            VStack {
-                GlobeSceneView(visitedCountries: Binding(
+            // Full screen 3D Globe
+            GlobeSceneView(
+                visitedCountries: Binding(
                     get: { self.visitedCountries },
                     set: { self.visitedCountries = $0 }
-                ))
-                .frame(height: UIScreen.main.bounds.height * 0.4)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-                .padding(.horizontal)
+                ),
+                userLocation: locationManager.userLocation
+            )
+            .frame(height: UIScreen.main.bounds.height * 0.4)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .padding(.horizontal)
                 
-                Spacer()
-            }
+            Spacer()
         }
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
     }
@@ -58,6 +62,7 @@ struct GlobeTab: View {
 
 struct GlobeSceneView: UIViewRepresentable {
     @Binding var visitedCountries: Set<String>
+    var userLocation: CLLocationCoordinate2D?
     
     // Generates a dark globe texture by downloading Natural Earth coastline
     // GeoJSON and drawing each LineString onto a 2048×1024 equirectangular canvas.
@@ -176,6 +181,9 @@ struct GlobeSceneView: UIViewRepresentable {
     func updateUIView(_ scnView: SCNView, context: Context) {
         // When visited countries change, we trigger a texture update in the coordinator
         context.coordinator.updateGlobeTexture(visitedCountries: visitedCountries)
+        
+        // Update user location dot
+        context.coordinator.updateUserLocation(userLocation)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -199,6 +207,9 @@ struct GlobeSceneView: UIViewRepresentable {
         // Track absolute angles to avoid gimbal lock
         private var angleX: Float = 0 // Rotation around Y axis (longitude)
         private var angleY: Float = 0 // Rotation around X axis (latitude)
+        
+        // User location
+        private var userLocationNode: SCNNode?
         
         // Texture caching
         private var cachedHitMap: UIImage?
@@ -334,18 +345,42 @@ struct GlobeSceneView: UIViewRepresentable {
         // MARK: - Dynamic Texture Generation
         
         func updateGlobeTexture(visitedCountries: Set<String>) {
-            // Dynamic CPU texture highlighting is a heavy operation.
-            // For a production app, we would process this on a background thread
-            // or use a Metal Shader. For this implementation, we simply print out
-            // the state to confirm the infrastructure works.
-            
-            // To implement true texture overriding:
-            // 1. Draw cachedVisualMap into a new CGContext.
-            // 2. Iterate pixels. If cachedHitMap pixel hex is in visitedCountries,
-            //    blend the light gray #8E8E93 over the visual map pixel.
-            // 3. Set globeNode?.geometry?.firstMaterial?.diffuse.contents = newUIImage
-            
+            // Placeholder for texture updates
             print("Globe texture needs update. Visited countries: \(visitedCountries)")
+        }
+        
+        func updateUserLocation(_ location: CLLocationCoordinate2D?) {
+            guard let location = location, let globeNode = globeNode else {
+                userLocationNode?.removeFromParentNode()
+                userLocationNode = nil
+                return
+            }
+            
+            let radius: Float = 10.0 // Match SCNSphere radius
+            
+            let lat = Float(location.latitude) * .pi / 180.0
+            let lon = Float(location.longitude) * .pi / 180.0
+            
+            let x = radius * cos(lat) * sin(lon)
+            let y = radius * sin(lat)
+            let z = radius * cos(lat) * cos(lon)
+            let position = SCNVector3(x, y, z)
+            
+            if let existingNode = userLocationNode {
+                let move = SCNAction.move(to: position, duration: 1.0)
+                existingNode.runAction(move)
+            } else {
+                let dotGeometry = SCNSphere(radius: 0.15)
+                let dotMaterial = SCNMaterial()
+                dotMaterial.diffuse.contents = UIColor.systemBlue
+                dotMaterial.emission.contents = UIColor.systemBlue
+                dotGeometry.materials = [dotMaterial]
+                
+                let dotNode = SCNNode(geometry: dotGeometry)
+                dotNode.position = position
+                globeNode.addChildNode(dotNode)
+                userLocationNode = dotNode
+            }
         }
     }
 }
