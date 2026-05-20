@@ -46,7 +46,7 @@ struct WanderApp: App {
             .preferredColorScheme(preferredColorScheme)
             .animation(.easeInOut(duration: 0.25), value: isAuthenticated)
             .animation(.easeInOut(duration: 0.25), value: locationManager.authorizationStatus)
-            .onChange(of: scenePhase) { newPhase in
+            .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     locationManager.startUpdating()
                 } else if newPhase == .background {
@@ -59,6 +59,7 @@ struct WanderApp: App {
 
 // MARK: - Location Manager
 
+@MainActor
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = LocationManager()
     

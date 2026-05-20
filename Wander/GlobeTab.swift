@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import SceneKit
+@preconcurrency import SceneKit
 import CoreGraphics
 import CoreLocation
 
