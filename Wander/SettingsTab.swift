@@ -51,9 +51,8 @@ struct SettingsTab: View {
 
     // MARK: - Profile Section
     //
-    // Displayed as a Form section with transparent background so it
-    // blends into the grouped background — mirrors the Apple ID header
-    // at the top of iOS Settings.
+    // Displayed as a standard Form section so it gets the same rounded
+    // background as all other sections.
 
     private var initials: String {
         let first = userFirstName.prefix(1).uppercased()
@@ -88,11 +87,8 @@ struct SettingsTab: View {
 
                 Spacer()
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
         }
-        .listRowBackground(Color(.systemGroupedBackground))
-        .listRowSeparator(.hidden)
     }
 
     // MARK: - Account Section
