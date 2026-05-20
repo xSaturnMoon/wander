@@ -59,43 +59,72 @@ struct GlobeTab: View {
 struct GlobeSceneView: UIViewRepresentable {
     @Binding var visitedCountries: Set<String>
     
-    // MARK: - Procedural Texture Generation
-    
-    static func makeGlobeTexture() -> UIImage {
-        let size = CGSize(width: 1024, height: 512)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        
-        return renderer.image { context in
-            let cgContext = context.cgContext
-            
-            // 1. Fill background with dark gray
-            UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0).setFill()
-            cgContext.fill(CGRect(origin: .zero, size: size))
-            
-            // 2. Draw latitude / longitude grid
-            UIColor(red: 142/255, green: 142/255, blue: 147/255, alpha: 0.5).setStroke()
-            cgContext.setLineWidth(1.0)
-            
-            // Longitude lines
-            let lonSteps = 36
-            let dx = size.width / CGFloat(lonSteps)
-            for i in 0...lonSteps {
-                let x = CGFloat(i) * dx
-                cgContext.move(to: CGPoint(x: x, y: 0))
-                cgContext.addLine(to: CGPoint(x: x, y: size.height))
+    // Generates a dark globe texture by downloading Natural Earth coastline
+    // GeoJSON and drawing each LineString onto a 2048×1024 equirectangular canvas.
+    static func applyGlobeTexture(to material: SCNMaterial) {
+        let W: CGFloat = 2048
+        let H: CGFloat = 1024
+        let bg = UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1)
+        let fg = UIColor(red: 142/255, green: 142/255, blue: 147/255, alpha: 1)
+
+        // 1. Set dark fallback immediately (no flicker on first paint)
+        material.diffuse.contents = bg
+
+        // 2. Download GeoJSON from Natural Earth (confirmed working URL)
+        let geoURL = URL(string:
+            "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_coastline.geojson")!
+
+        URLSession.shared.dataTask(with: geoURL) { data, _, _ in
+            guard
+                let data = data,
+                let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let features = root["features"] as? [[String: Any]]
+            else { return }
+
+            // 3. Collect every LineString / MultiLineString into one flat array of polylines
+            var polylines: [[[Double]]] = []
+            for feature in features {
+                guard let geom = feature["geometry"] as? [String: Any],
+                      let type = geom["type"] as? String else { continue }
+                if type == "LineString", let coords = geom["coordinates"] as? [[Double]] {
+                    polylines.append(coords)
+                } else if type == "MultiLineString", let lines = geom["coordinates"] as? [[[Double]]] {
+                    polylines.append(contentsOf: lines)
+                }
             }
-            
-            // Latitude lines
-            let latSteps = 18
-            let dy = size.height / CGFloat(latSteps)
-            for i in 0...latSteps {
-                let y = CGFloat(i) * dy
-                cgContext.move(to: CGPoint(x: 0, y: y))
-                cgContext.addLine(to: CGPoint(x: size.width, y: y))
+
+            // 4. Render to UIImage
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: W, height: H))
+            let texture = renderer.image { ctx in
+                let cg = ctx.cgContext
+                // Background
+                bg.setFill()
+                cg.fill(CGRect(x: 0, y: 0, width: W, height: H))
+                // Lines
+                fg.setStroke()
+                cg.setLineWidth(1.0)
+                cg.setLineCap(.round)
+                cg.setLineJoin(.round)
+
+                for polyline in polylines {
+                    guard let first = polyline.first, first.count >= 2 else { continue }
+                    let startX = (first[0] + 180.0) / 360.0 * W
+                    let startY = (90.0 - first[1]) / 180.0 * H
+                    cg.move(to: CGPoint(x: startX, y: startY))
+                    for pt in polyline.dropFirst() {
+                        guard pt.count >= 2 else { continue }
+                        let x = (pt[0] + 180.0) / 360.0 * W
+                        let y = (90.0 - pt[1]) / 180.0 * H
+                        cg.addLine(to: CGPoint(x: x, y: y))
+                    }
+                    cg.strokePath()
+                }
             }
-            
-            cgContext.strokePath()
-        }
+
+            DispatchQueue.main.async {
+                material.diffuse.contents = texture
+            }
+        }.resume()
     }
     
     func makeUIView(context: Context) -> SCNView {
@@ -112,7 +141,7 @@ struct GlobeSceneView: UIViewRepresentable {
         globeGeometry.segmentCount = 64
         
         let globeMaterial = SCNMaterial()
-        globeMaterial.diffuse.contents = GlobeSceneView.makeGlobeTexture()
+        GlobeSceneView.applyGlobeTexture(to: globeMaterial)
         globeMaterial.lightingModel = .lambert
         globeMaterial.isDoubleSided = false
         
