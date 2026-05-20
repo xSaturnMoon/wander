@@ -61,7 +61,7 @@ struct WanderApp: App {
 
 @MainActor
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    static let shared = LocationManager()
+    @MainActor static let shared = LocationManager()
     
     private let manager = CLLocationManager()
     
@@ -100,8 +100,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
     }
     
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        DispatchQueue.main.async {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
             self.authorizationStatus = manager.authorizationStatus
             if self.authorizationStatus == .authorizedWhenInUse {
                 manager.requestAlwaysAuthorization()
@@ -109,9 +109,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.userLocation = location.coordinate
         }
     }
