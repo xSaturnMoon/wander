@@ -342,7 +342,7 @@ struct GlobeSceneView: UIViewRepresentable {
             }
         }
 
-        private static func renderTexture(features: [[String: Any]], visitedCountries: Set<String>) -> UIImage {
+        nonisolated private static func renderTexture(features: [[String: Any]], visitedCountries: Set<String>) -> UIImage {
             let W: CGFloat = 2048
             let H: CGFloat = 1024
 
@@ -402,7 +402,7 @@ struct GlobeSceneView: UIViewRepresentable {
             }
         }
 
-        private static func extractRings(geom: [String: Any], type: String) -> [[[Double]]] {
+        nonisolated private static func extractRings(geom: [String: Any], type: String) -> [[[Double]]] {
             switch type {
             case "Polygon":
                 return (geom["coordinates"] as? [[[Double]]]) ?? []
