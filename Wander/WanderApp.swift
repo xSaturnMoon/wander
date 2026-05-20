@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 @main
 struct WanderApp: App {
@@ -57,7 +58,6 @@ struct WanderApp: App {
 }
 
 // MARK: - Location Manager
-import CoreLocation
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = LocationManager()
