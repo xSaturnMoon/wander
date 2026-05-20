@@ -4,11 +4,12 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct MapTab: View {
     var body: some View {
-        Color.clear
-            .background(Color(UIColor.systemGroupedBackground))
+        Map()
+            .mapStyle(.standard)
             .ignoresSafeArea()
     }
 }
