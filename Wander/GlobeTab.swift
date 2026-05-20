@@ -8,32 +8,27 @@ import SwiftUI
 import CoreGraphics
 import CoreLocation
 
-// MARK: - AppStorage Helper for Array
-
-extension Array: @retroactive RawRepresentable where Element: Codable {
-    public init?(rawValue: String) {
-        guard let data = rawValue.data(using: .utf8),
-              let result = try? JSONDecoder().decode([Element].self, from: data)
-        else { return nil }
-        self = result
-    }
-    public var rawValue: String {
-        guard let data = try? JSONEncoder().encode(self),
-              let result = String(data: data, encoding: .utf8)
-        else { return "[]" }
-        return result
-    }
-}
-
 // MARK: - Globe Tab
 
 struct GlobeTab: View {
-    @StateObject private var locationManager = LocationManager.shared
+    @ObservedObject private var locationManager = LocationManager.shared
 
-    @AppStorage("visitedCountries") private var visitedCountriesArray: [String] = []
+    @AppStorage("visitedCountriesData") private var visitedCountriesData: String = "[]"
     var visitedCountries: Set<String> {
-        get { Set(visitedCountriesArray) }
-        nonmutating set { visitedCountriesArray = Array(newValue).sorted() }
+        get {
+            guard let data = visitedCountriesData.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([String].self, from: data) else {
+                return []
+            }
+            return Set(arr)
+        }
+        nonmutating set {
+            let arr = Array(newValue).sorted()
+            if let data = try? JSONEncoder().encode(arr),
+               let str = String(data: data, encoding: .utf8) {
+                visitedCountriesData = str
+            }
+        }
     }
 
     // All available country names (populated after GeoJSON loads)
@@ -337,13 +332,13 @@ struct GlobeSceneView: UIViewRepresentable {
         private func renderAndApplyTexture(visitedCountries: Set<String>) {
             let features = cachedFeatures
             let visited = visitedCountries
-            let material = globeMaterial
 
-            DispatchQueue.global(qos: .userInitiated).async {
-                let image = Self.renderTexture(features: features, visitedCountries: visited)
-                DispatchQueue.main.async {
-                    material?.diffuse.contents = image
-                }
+            Task {
+                let image = await Task.detached(priority: .userInitiated) {
+                    return Self.renderTexture(features: features, visitedCountries: visited)
+                }.value
+                
+                self.globeMaterial?.diffuse.contents = image
             }
         }
 
