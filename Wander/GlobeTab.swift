@@ -59,6 +59,45 @@ struct GlobeTab: View {
 struct GlobeSceneView: UIViewRepresentable {
     @Binding var visitedCountries: Set<String>
     
+    // MARK: - Procedural Texture Generation
+    
+    static func makeGlobeTexture() -> UIImage {
+        let size = CGSize(width: 1024, height: 512)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            let cgContext = context.cgContext
+            
+            // 1. Fill background with dark gray
+            UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0).setFill()
+            cgContext.fill(CGRect(origin: .zero, size: size))
+            
+            // 2. Draw latitude / longitude grid
+            UIColor(red: 142/255, green: 142/255, blue: 147/255, alpha: 0.5).setStroke()
+            cgContext.setLineWidth(1.0)
+            
+            // Longitude lines
+            let lonSteps = 36
+            let dx = size.width / CGFloat(lonSteps)
+            for i in 0...lonSteps {
+                let x = CGFloat(i) * dx
+                cgContext.move(to: CGPoint(x: x, y: 0))
+                cgContext.addLine(to: CGPoint(x: x, y: size.height))
+            }
+            
+            // Latitude lines
+            let latSteps = 18
+            let dy = size.height / CGFloat(latSteps)
+            for i in 0...latSteps {
+                let y = CGFloat(i) * dy
+                cgContext.move(to: CGPoint(x: 0, y: y))
+                cgContext.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            
+            cgContext.strokePath()
+        }
+    }
+    
     func makeUIView(context: Context) -> SCNView {
         let scnView = SCNView()
         scnView.backgroundColor = .clear
@@ -73,36 +112,9 @@ struct GlobeSceneView: UIViewRepresentable {
         globeGeometry.segmentCount = 64
         
         let globeMaterial = SCNMaterial()
-        // Default base color if texture is missing
-        globeMaterial.diffuse.contents = UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0)
-        
-        // Fetch missing texture from the provided URL at runtime
-        if let url = URL(string: "https://raw.githubusercontent.com/simonepri/geo-maps/master/previews/earth-coastlines.png") {
-            let task = URLSession.shared.dataTask(with: url) { data, response, error in
-                if let data = data, let originalImage = UIImage(data: data) {
-                    
-                    // Pre-composite the background color and the coastlines into a single texture
-                    let size = originalImage.size
-                    let renderer = UIGraphicsImageRenderer(size: size)
-                    let compositedImage = renderer.image { context in
-                        // 1. Fill dark gray background (#2C2C2E)
-                        UIColor(red: 44/255, green: 44/255, blue: 46/255, alpha: 1.0).setFill()
-                        context.fill(CGRect(origin: .zero, size: size))
-                        
-                        // 2. Tint coastlines light gray (#8E8E93) and draw them
-                        let lightGray = UIColor(red: 142/255, green: 142/255, blue: 147/255, alpha: 1.0)
-                        let tintedImage = originalImage.withTintColor(lightGray, renderingMode: .alwaysTemplate)
-                        lightGray.set()
-                        tintedImage.draw(in: CGRect(origin: .zero, size: size))
-                    }
-                    
-                    DispatchQueue.main.async {
-                        globeMaterial.diffuse.contents = compositedImage
-                    }
-                }
-            }
-            task.resume()
-        }
+        globeMaterial.diffuse.contents = GlobeSceneView.makeGlobeTexture()
+        globeMaterial.lightingModel = .lambert
+        globeMaterial.isDoubleSided = false
         
         globeGeometry.materials = [globeMaterial]
         
